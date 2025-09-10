@@ -1,0 +1,46 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>AI Budgeting Advice</title>
+</head>
+<body>
+    <h1>AI Budgeting Advice</h1>
+    <p>{{ advice|safe}}</p>
+    <a href="/">Back to Home</a>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Budgeting Advice</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-2xl w-full bg-white shadow-xl rounded-2xl p-8 space-y-6">
+    
+    <!-- Header -->
+    <div class="text-center">
+      <h1 class="text-3xl font-bold text-green-600">AI Budgeting Advice</h1>
+      <p class="text-gray-500 mt-2">Personalized financial insights powered by AI</p>
+    </div>
+
+    <!-- Advice Content -->
+    <div class="bg-gray-50 p-6 rounded-xl shadow-inner">
+      <p class="text-lg leading-relaxed text-gray-700">{{ advice|safe }}</p>
+    </div>
+
+    <!-- Back Button -->
+    <div class="text-center">
+      <a href="/" 
+         class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 transition">
+        ⬅ Back to Home
+      </a>
+    </div>
+
+  </div>
+</body>
+</html>
