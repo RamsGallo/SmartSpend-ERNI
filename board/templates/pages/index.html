@@ -1,48 +1,14 @@
-<!-- <!DOCTYPE html>
-<html>
-<head>
-    <title>Smart Budgeting</title>
-</head>
-<body>
-    <h1>Smart Budgeting App</h1>
-    <h2>Balance: ${{ balance }}</h2>
+{% extends 'base.html' %}
 
-    <h3>Add Transaction</h3>
-    <form method="POST" action="/add">
-        <label>Type:</label>
-        <select name="type">
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-        </select>
-        <br>
-        <label>Amount:</label>
-        <input type="number" step="0.01" name="amount" required>
-        <br>
-        <label>Description:</label>
-        <input type="text" name="description" required>
-        <br>
-        <button type="submit">Add</button>
-    </form>
+{% block title %}
+    Smart Spend
+{% endblock title %}
 
-    <h3>Transactions</h3>
-    <ul>
-        {% for t in transactions %}
-            <li>{{ t.type }} - ${{ t.amount }} ({{ t.description }})</li>
-        {% endfor %}
-    </ul>
+{% block header %}
+<script src="https://cdn.tailwindcss.com"></script>
+{% endblock header %}
 
-    <a href="/advice">Get AI Advice</a>
-</body>
-</html> -->
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Budgeting</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
+{% block content %}
 <body class="bg-gray-100 text-gray-800 min-h-screen flex items-center justify-center p-6">
   <div class="max-w-3xl w-full bg-white shadow-xl rounded-2xl p-8 space-y-6">
     
@@ -51,6 +17,10 @@
       <h1 class="text-3xl font-bold text-blue-600">Smart Budgeting App</h1>
       <p class="text-lg mt-2">Balance: <span class="font-semibold text-green-600">₱{{ balance }}</span></p>
     </div>
+    
+    <a href="{{ url_for('pages.add_income_page') }}">
+    <button>Cash In</button>
+</a>
 
     <!-- Add Transaction Form -->
     <div class="bg-gray-50 p-6 rounded-xl shadow-inner">
@@ -113,4 +83,5 @@
 
   </div>
 </body>
+{% endblock content %}
 </html>
