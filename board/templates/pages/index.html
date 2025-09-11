@@ -36,7 +36,6 @@
             <nav class="flex items-center space-x-4">
                 <a href="{{ url_for('pages.investments') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Stock Lookup</a>
                 <a href="{{ url_for('pages.advice') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">AI Utilization Overview</a>
-                <!-- This link is a placeholder. You can create a profile endpoint later. -->
                 <a href="{{ url_for('pages.profile') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Profile</a>
                 <a href="{{ url_for('pages.logout') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Logout</a>
             </nav>
@@ -49,21 +48,28 @@
             <div class="flex-1 bg-white p-6 rounded-xl shadow-md space-y-6">
                 <h2 class="text-lg font-semibold text-gray-900">Financial Overview</h2>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <!-- Total Balance Card -->
-                    <div class="flex flex-col p-4 rounded-xl border border-gray-200 bg-gray-50">
+                    <div class="flex flex-col p-4 rounded-xl border border-gray-200 bg-gray-50 col-span-2">
                         <span class="text-sm text-gray-500 font-medium">Total Balance</span>
                         <span class="mt-1 text-2xl font-bold text-gray-900">₱{{ balance }}</span>
                     </div>
 
+                    <!-- Inflation Adjusted Balance Card -->
+                    <div class="flex flex-col p-4 rounded-xl border border-gray-200 bg-gray-50 col-span-2">
+                        <span class="text-sm text-gray-500 font-medium">Inflation-Adjusted Balance</span>
+                        <span id="inflationAdjustedBalance" class="mt-1 text-2xl font-bold text-gray-900">...</span>
+                        <span id="inflationRateText" class="text-xs text-gray-400 mt-1">...</span>
+                    </div>
+
                     <!-- Income Card -->
-                    <div class="flex flex-col p-4 rounded-xl border border-green-200 bg-green-50">
+                    <div class="flex flex-col p-4 rounded-xl border border-green-200 bg-green-50 col-span-2">
                         <span class="text-sm text-green-700 font-medium">Total Income</span>
                         <span class="mt-1 text-2xl font-bold text-green-800">₱{{ income }}</span>
                     </div>
 
                     <!-- Expense Card -->
-                    <div class="flex flex-col p-4 rounded-xl border border-red-200 bg-red-50">
+                    <div class="flex flex-col p-4 rounded-xl border border-red-200 bg-red-50 col-span-2">
                         <span class="text-sm text-red-700 font-medium">Total Expenses</span>
                         <span class="mt-1 text-2xl font-bold text-red-800">₱{{ expense }}</span>
                     </div>
@@ -86,13 +92,16 @@
 
             <!-- Recent Transactions Section -->
             <div class="w-full md:w-1/2 lg:w-2/5 xl:w-1/3 flex-shrink-0 bg-white p-6 rounded-xl shadow-md space-y-4">
-                <!-- Donut Chart -->
-                <h2 class="text-lg font-semibold text-gray-900">Expense Breakdown</h2>
-                <div class="flex items-center justify-center">
-                    <canvas id="expenseChart" class="w-full h-auto"></canvas>
+                
+                <!-- Doughnut Chart Section -->
+                <div class="w-full space-y-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Expense Breakdown</h2>
+                    <div class="flex items-center justify-center">
+                        <canvas id="expenseChart" class="w-full h-auto"></canvas>
+                    </div>
                 </div>
                 
-                <h2 class="text-lg font-semibold text-gray-900">Recent Transactions</h2>
+                <h2 class="text-lg font-semibold text-gray-900 mt-6">Recent Transactions</h2>
                 
                 <div class="max-h-80 overflow-y-auto scrollbar-hidden">
                     {% if transactions %}
@@ -126,11 +135,35 @@
             </div>
 
         </main>
+
+        <!-- Charts Container with 2:1 Split -->
+        <div class="w-full max-w-4xl flex flex-col md:flex-row gap-6 mt-6">
+            <!-- Cash Flow Forecast Card (2/3 width) -->
+            <div class="flex-grow w-full md:w-2/3 bg-white p-6 rounded-xl shadow-md space-y-4">
+                <h2 class="text-lg font-semibold text-gray-900">Cash Flow Forecast</h2>
+                <div class="flex items-center justify-center">
+                    <canvas id="cashFlowChart" class="w-full h-80 sm:h-96"></canvas>
+                </div>
+            </div>
+
+            <!-- Daily Transactions Card (1/3 width) -->
+            <div class="flex-grow w-full md:w-1/3 bg-white p-6 rounded-xl shadow-md space-y-4">
+                <h2 class="text-lg font-semibold text-gray-900">Daily Transactions</h2>
+                <div class="flex items-center justify-center h-80 sm:h-96">
+                    <canvas id="dailyChart" class="w-full h-auto"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
 <script>
     // Get the transactions data from the Flask template
     const transactions = {{ transactions | tojson }};
+    const initialBalance = {{ balance | tojson }};
+
+    // Philippines annual inflation rate as of August 2025 (sourced via Google Search)
+    const annualInflationRate = 0.015;
+    const dailyInflationRate = Math.pow(1 + annualInflationRate, 1/365) - 1;
 
     // Helper function to format the date string
     function formatDate(dateString) {
@@ -139,12 +172,21 @@
         return date.toLocaleDateString('en-US', options);
     }
 
+    // Helper function to format the full date for the bar chart
+    function formatFullDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US');
+    }
+
     // Format dates on page load
     document.querySelectorAll('[data-created-at]').forEach(element => {
         const dateString = element.getAttribute('data-created-at');
         element.textContent = formatDate(dateString);
     });
 
+    // ------------------------------------
+    // Doughnut Chart Logic
+    // ------------------------------------
     // Aggregate expenses by description
     const expenseData = transactions.reduce((acc, transaction) => {
         if (transaction.type === 'expense') {
@@ -171,12 +213,12 @@
         '#3b82f6', // Blue 500
         '#a855f7', // Purple 500
         '#ec4899', // Pink 500
-        '#f43f5e', // Rose 500
+        '#f43f5e', // Rose 500,
     ];
 
     if (labels.length > 0) {
         const ctx = document.getElementById('expenseChart').getContext('2d');
-        const expenseChart = new Chart(ctx, {
+        new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
@@ -190,42 +232,293 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                // The following lines were removed to create a full circle again
-                // rotation: -0.5 * Math.PI,
-                // circumference: Math.PI,
                 plugins: {
                     legend: {
                         position: 'top',
                         labels: {
-                            font: {
-                                family: 'Inter',
-                            }
+                            font: { family: 'Inter' }
                         }
                     },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
                                 let label = context.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed) {
-                                    label += '₱' + context.parsed.toFixed(2);
-                                }
+                                if (label) { label += ': '; }
+                                if (context.parsed) { label += '₱' + context.parsed.toFixed(2); }
                                 return label;
                             }
                         },
-                        titleFont: {
-                            family: 'Inter'
-                        },
-                        bodyFont: {
-                            family: 'Inter'
-                        }
+                        titleFont: { family: 'Inter' },
+                        bodyFont: { family: 'Inter' }
                     }
                 }
             }
         });
     }
+
+    // ------------------------------------
+    // New Bar Chart Logic
+    // ------------------------------------
+    // Aggregate income and expenses by date
+    const dailyData = transactions.reduce((acc, transaction) => {
+        // Use the full date (e.g., '10/27/2023') as the key
+        const dateKey = formatFullDate(transaction.created_at);
+        if (!acc[dateKey]) {
+            acc[dateKey] = { income: 0, expense: 0 };
+        }
+        if (transaction.type === 'income') {
+            acc[dateKey].income += transaction.amount;
+        } else {
+            acc[dateKey].expense += transaction.amount;
+        }
+        return acc;
+    }, {});
+
+    const dailyLabels = Object.keys(dailyData);
+    const dailyIncome = dailyLabels.map(date => dailyData[date].income);
+    const dailyExpenses = dailyLabels.map(date => dailyData[date].expense);
+
+    if (dailyLabels.length > 0) {
+        const ctxDaily = document.getElementById('dailyChart').getContext('2d');
+        new Chart(ctxDaily, {
+            type: 'bar',
+            data: {
+                labels: dailyLabels,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: dailyIncome,
+                        backgroundColor: '#22c55e', // green-500
+                        borderRadius: 6,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.8,
+                    },
+                    {
+                        label: 'Expenses',
+                        data: dailyExpenses,
+                        backgroundColor: '#ef4444', // red-500
+                        borderRadius: 6,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.8,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#e5e7eb' // gray-200
+                        },
+                        ticks: {
+                            font: { family: 'Inter' },
+                            callback: function(value) { return '₱' + value; }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: { family: 'Inter' }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: { family: 'Inter' }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed.y) { label += '₱' + context.parsed.y.toFixed(2); }
+                                return label;
+                            }
+                        },
+                        titleFont: { family: 'Inter' },
+                        bodyFont: { family: 'Inter' }
+                    }
+                }
+            }
+        });
+    }
+
+    // ------------------------------------
+    // Cash Flow Forecast Logic
+    // ------------------------------------
+    // Aggregate historical balance over time
+    let sortedTransactions = [...transactions].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    let historicalData = [];
+    let currentBalance = 0;
+    
+    // Calculate daily balance changes
+    const balanceByDate = {};
+    const startDate = sortedTransactions.length > 0 ? new Date(sortedTransactions[0].created_at) : new Date();
+    const today = new Date();
+    
+    // Populate balance for each day with transactions
+    sortedTransactions.forEach(t => {
+        const date = formatFullDate(t.created_at);
+        if (!balanceByDate[date]) {
+            balanceByDate[date] = 0;
+        }
+        balanceByDate[date] += (t.type === 'income' ? t.amount : -t.amount);
+    });
+
+    // Create a continuous historical data series
+    let currentDate = new Date(startDate);
+    const dateLabels = [];
+    const historicalBalances = [];
+    const inflationAdjustedHistorical = [];
+
+    while (currentDate <= today) {
+        const dateKey = formatFullDate(currentDate.toISOString());
+        currentBalance += balanceByDate[dateKey] || 0;
+        
+        // Calculate days since the start for inflation adjustment
+        const daysSinceStart = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24));
+        const adjustedBalance = currentBalance / Math.pow(1 + dailyInflationRate, daysSinceStart);
+
+        dateLabels.push(formatFullDate(currentDate.toISOString()));
+        historicalBalances.push(currentBalance);
+        inflationAdjustedHistorical.push(adjustedBalance);
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Calculate average daily change for forecasting
+    const totalChange = historicalBalances[historicalBalances.length - 1] - historicalBalances[0];
+    const totalDays = historicalBalances.length > 1 ? historicalBalances.length - 1 : 1;
+    const averageDailyChange = totalChange / totalDays;
+    
+    // Project the future cash flow (e.g., for the next 7 days)
+    const forecastDays = 7;
+    const forecastLabels = [];
+    const forecastBalances = [];
+    const inflationAdjustedForecast = [];
+    
+    let lastHistoricalDate = new Date(dateLabels[dateLabels.length - 1]);
+    let lastHistoricalBalance = historicalBalances[historicalBalances.length - 1];
+    let lastInflationAdjustedBalance = inflationAdjustedHistorical[inflationAdjustedHistorical.length - 1];
+
+    for (let i = 0; i < forecastDays; i++) {
+        lastHistoricalDate.setDate(lastHistoricalDate.getDate() + 1);
+        lastHistoricalBalance += averageDailyChange;
+        
+        // Adjust the future balance for inflation
+        lastInflationAdjustedBalance += (averageDailyChange - (lastInflationAdjustedBalance * dailyInflationRate));
+
+        forecastLabels.push(formatFullDate(lastHistoricalDate.toISOString()));
+        forecastBalances.push(lastHistoricalBalance);
+        inflationAdjustedForecast.push(lastInflationAdjustedBalance);
+    }
+    
+    // Combine historical and forecast data for the chart
+    const combinedLabels = dateLabels.concat(forecastLabels);
+    const historicalLine = historicalBalances.concat(new Array(forecastDays).fill(null));
+    const forecastLine = new Array(dateLabels.length - 1).fill(null).concat(historicalBalances[historicalBalances.length - 1]).concat(forecastBalances);
+    const inflationHistoricalLine = inflationAdjustedHistorical.concat(new Array(forecastDays).fill(null));
+    const inflationForecastLine = new Array(dateLabels.length - 1).fill(null).concat(inflationAdjustedHistorical[inflationAdjustedHistorical.length - 1]).concat(inflationAdjustedForecast);
+
+
+    const ctxCashFlow = document.getElementById('cashFlowChart').getContext('2d');
+    new Chart(ctxCashFlow, {
+        type: 'line',
+        data: {
+            labels: combinedLabels,
+            datasets: [
+                {
+                    label: 'Historical Balance',
+                    data: historicalLine,
+                    borderColor: '#3b82f6', // blue-500
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 3,
+                },
+                {
+                    label: 'Projected Balance',
+                    data: forecastLine,
+                    borderColor: '#a855f7', // purple-500
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                },
+                {
+                    label: 'Inflation-Adjusted Balance',
+                    data: inflationHistoricalLine,
+                    borderColor: '#f97316', // orange-500
+                    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 3,
+                },
+                {
+                    label: 'Inflation-Adjusted Projection',
+                    data: inflationForecastLine,
+                    borderColor: '#eab308', // yellow-500
+                    borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#e5e7eb' },
+                    ticks: {
+                        font: { family: 'Inter' },
+                        callback: function(value) { return '₱' + value; }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { family: 'Inter' },
+                        maxTicksLimit: 10
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { family: 'Inter' }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) { label += ': '; }
+                            if (context.parsed.y) { label += '₱' + context.parsed.y.toFixed(2); }
+                            return label;
+                        }
+                    },
+                    titleFont: { family: 'Inter' },
+                    bodyFont: { family: 'Inter' }
+                }
+            }
+        }
+    });
+
+    // Update the inflation adjusted balance on the dashboard
+    const todayAdjustedBalance = initialBalance / Math.pow(1 + dailyInflationRate, Math.floor((new Date() - startDate) / (1000 * 60 * 60 * 24)));
+    document.getElementById('inflationAdjustedBalance').textContent = '₱' + todayAdjustedBalance.toFixed(2);
+    document.getElementById('inflationRateText').textContent = `*Based on ${annualInflationRate * 100}% annual inflation`;
 </script>
 </body>
 </html>
