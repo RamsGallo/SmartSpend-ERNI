@@ -1,21 +1,33 @@
+import os
+import secrets
+import tempfile
 from flask import Blueprint, render_template, request, redirect, url_for, session, current_app, flash
 from flask_login import login_required, login_user, logout_user, current_user
 import markdown
-import os
 import requests
+from sqlalchemy import func
 from datetime import datetime
-
-from board.models import db, Transaction, User
+from werkzeug.utils import secure_filename
+from board.models import db, Transaction, User, Goal
+from board.ocr_utils import process_image_for_ocr, parse_transaction_from_text
 
 bp = Blueprint("pages", __name__)
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @bp.route("/")
 @login_required
 def index():
     # Only show transactions for the currently logged-in user
     transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.created_at.desc()).all()
+    
+    # Fetch goals for the current user and order them by priority
+    goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.priority.desc()).all()
 
-    # --- Change starts here ---
     # Convert the list of SQLAlchemy objects into a list of dictionaries
     # This makes the data JSON-serializable for the JavaScript in the template
     transactions_for_json = [
@@ -28,14 +40,19 @@ def index():
         }
         for t in transactions
     ]
-    # --- Change ends here ---
 
     income = sum(t.amount for t in transactions if t.type == "income")
     expense = sum(t.amount for t in transactions if t.type == "expense")
     balance = income - expense
 
-    # Pass the JSON-serializable list to the template
-    return render_template("pages/index.html", transactions=transactions_for_json, balance=balance, income=income, expense=expense)
+    # Pass the JSON-serializable list and goals to the template
+    return render_template("pages/index.html", 
+        transactions=transactions_for_json, 
+        balance=balance, 
+        income=income, 
+        expense=expense,
+        goals=goals
+    )
 
 @bp.route("/add", methods=["POST"])
 @login_required
@@ -59,20 +76,130 @@ def add_transaction():
 
     return redirect(url_for("pages.index"))
 
+# New route to add a financial goal
+@bp.route("/add_goal", methods=["POST"])
+@login_required
+def add_goal():
+    name = request.form["name"]
+    target_amount = float(request.form["target_amount"])
+    priority = int(request.form["priority"])
+
+    new_goal = Goal(
+        name=name,
+        target_amount=target_amount,
+        priority=priority,
+        user_id=current_user.id
+    )
+
+    db.session.add(new_goal)
+    db.session.commit()
+
+    flash("Goal added successfully!", "success")
+    return redirect(url_for("pages.index"))
+
+# New route to distribute the remaining balance based on goals
+@bp.route("/distribute_balance", methods=["POST"])
+@login_required
+def distribute_balance():
+    # Calculate the user's current balance
+    income = db.session.query(func.sum(Transaction.amount)).filter_by(user_id=current_user.id, type='income').scalar() or 0
+    expense = db.session.query(func.sum(Transaction.amount)).filter_by(user_id=current_user.id, type='expense').scalar() or 0
+    balance = income - expense
+
+    if balance <= 0:
+        flash("No balance to distribute.", "warning")
+        return redirect(url_for("pages.index"))
+
+    # Get all goals for the user
+    goals = Goal.query.filter_by(user_id=current_user.id).all()
+    total_priority = sum(goal.priority for goal in goals)
+
+    if total_priority == 0:
+        flash("No goals with priorities set.", "warning")
+        return redirect(url_for("pages.index"))
+
+    distributed_amount = 0
+    for goal in goals:
+        # Calculate the proportional amount to distribute to this goal
+        proportion = goal.priority / total_priority
+        amount_to_distribute = balance * proportion
+        
+        # Ensure we don't exceed the target amount
+        if goal.current_amount + amount_to_distribute > goal.target_amount:
+            amount_to_distribute = goal.target_amount - goal.current_amount
+        
+        if amount_to_distribute > 0:
+            goal.current_amount += amount_to_distribute
+            distributed_amount += amount_to_distribute
+
+            # Create a new "expense" transaction for the distribution
+            new_transaction = Transaction(
+                type='expense',
+                amount=amount_to_distribute,
+                description=f"Distributed to goal: {goal.name}",
+                source='Goal Distribution',
+                user_id=current_user.id
+            )
+            db.session.add(new_transaction)
+
+    db.session.commit()
+    flash(f"Successfully distributed ₱{distributed_amount:.2f} to your goals!", "success")
+    return redirect(url_for("pages.index"))
+
+@bp.route("/ocr_upload", methods=["POST"])
+@login_required
+def ocr_upload():
+    if "file" not in request.files:
+        flash("No file uploaded.", "danger")
+        return redirect(url_for("pages.index"))
+
+    file = request.files["file"]
+    if file.filename == "":
+        flash("No file selected.", "danger")
+        return redirect(url_for("pages.index"))
+
+    # Save the uploaded file temporarily
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+
+    # Run OCR
+    extracted_text = process_image_for_ocr(filepath)
+    transactions = parse_transaction_from_text(extracted_text)
+
+    if not transactions:
+        flash("No transaction details found in scan.", "warning")
+        return redirect(url_for("pages.index"))
+
+    # Save each transaction for the logged-in user
+    for tx in transactions:
+        new_tx = Transaction(
+            type=tx["type"],
+            amount=tx["amount"],
+            description=tx["description"],
+            source=tx["source"],
+            user_id=current_user.id,  # ✅ tie to logged-in user
+        )
+        db.session.add(new_tx)
+
+    db.session.commit()
+
+    flash(f"Added {len(transactions)} transaction(s) from OCR scan!", "success")
+    return redirect(url_for("pages.index"))
+
+
 @bp.route("/register", methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         
-        # New fields from the registration form
         full_name = request.form['full_name']
         email = request.form['email']
         date_of_birth = request.form['date_of_birth']
         age = request.form['age']
         income_source = request.form['income_source']
 
-        # Check if the username or email already exists
         if User.query.filter_by(username=username).first():
             flash('Username already exists! Please choose a different one.', 'error')
             return redirect(url_for('pages.register'))
@@ -82,7 +209,6 @@ def register():
             return redirect(url_for('pages.register'))
 
         try:
-            # Convert date of birth and age to the correct types
             dob_obj = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
             age_int = int(age)
 
@@ -98,7 +224,6 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             
-            # Log the user in immediately after registration
             login_user(new_user)
 
             flash('Registration successful and you have been logged in!', 'success')
@@ -109,23 +234,19 @@ def register():
             return redirect(url_for('pages.register'))
 
     return render_template('auth/register.html')
-        
+            
 @bp.route("/login", methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # The user input could be either a username or an email
         user_input = request.form['username']
         password = request.form['password']
         
-        # Look up the user by either username or email
         user = User.query.filter((User.username == user_input) | (User.email == user_input)).first()
 
         if user and user.check_password(password):
-            # Log the user in and remember their session
             login_user(user, remember=True)
             flash('Login successful!', 'success')
 
-            # Handle redirects after login (e.g., to the page they were trying to access)
             next_page = request.args.get('next')
             return redirect(next_page or url_for('pages.index'))
         
@@ -250,6 +371,10 @@ def add_investment():
 
     # Update or add the investment to the session list
     found = False
+
+    if "investments" not in session:
+        session["investments"] = []
+
     for item in session['investments']:
         if item['symbol'] == symbol:
             item['quantity'] += quantity
@@ -264,8 +389,7 @@ def add_investment():
 
     # The session needs to be modified for Flask to save changes.
     session.modified = True
-    flash(f"Added {symbol} to your portfolio!", "success")
-    return redirect(url_for("pages.investments"))
+    return render_template("investment_tracker.html", holdings=session["investments"])
 
 # Route to remove an investment from the session
 @bp.route("/remove_investment", methods=["POST"])

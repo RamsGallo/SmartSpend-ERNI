@@ -24,33 +24,27 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
     app.config['API_KEY'] = os.getenv('SECRET_API_KEY')
     app.config['MODEL_ID'] = MODEL_ID
-
     app.config['ALPHA_VANTAGE_API_KEY'] = os.getenv('ALPHA_VANTAGE_API_KEY')
 
-    # Create the instance path directory if it doesn't exist
     os.makedirs(app.instance_path, exist_ok=True)
 
-    # Set the database URI to the path within the instance folder
+    upload_folder = os.path.join(app.instance_path, "uploads")
+    os.makedirs(upload_folder, exist_ok=True)
+    app.config["UPLOAD_FOLDER"] = upload_folder
+
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "app.db")
 
-    # Initialize the database, migration engine, and login manager with the app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
-    # Set the login view for Flask-Login
     login_manager.login_view = 'pages.login'
 
-    # Import models to ensure they are registered with SQLAlchemy
     from . import models
 
-    # This user loader function tells Flask-Login how to find a user by their ID
     @login_manager.user_loader
     def load_user(user_id):
-        # The return type must match your User model
         return models.User.query.get(int(user_id))
     
-    # Store the client object in the app's configuration
-    # This is available from anywhere with `current_app.config['API_CLIENT']`
     app.config['API_CLIENT'] = genai.Client(api_key=app.config['API_KEY'])
 
     from board.pages import bp

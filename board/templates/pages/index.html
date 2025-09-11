@@ -34,7 +34,7 @@
         <header class="w-full max-w-4xl flex justify-between items-center py-4 px-6 bg-white shadow-md rounded-xl mb-8">
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">My Budget</h1>
             <nav class="flex items-center space-x-4">
-                <a href="{{ url_for('pages.investments') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Stock Lookup</a>
+                <a href="{{ url_for('pages.investments') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Stock Watch</a>
                 <a href="{{ url_for('pages.advice') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">AI Utilization Overview</a>
                 <a href="{{ url_for('pages.profile') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Profile</a>
                 <a href="{{ url_for('pages.logout') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Logout</a>
@@ -88,6 +88,13 @@
                     </div>
                     <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 transition">Add Transaction</button>
                 </form>
+                 <form action="{{ url_for('pages.ocr_upload') }}" method="POST" enctype="multipart/form-data" class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+                  <h3 class="text-md font-semibold text-gray-700">Add via OCR Scan</h3>
+                      <div class="flex items-center space-x-2">
+                    <input type="file" name="file" accept=".png, .jpg, .jpeg" required class="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition">
+                      <button type="submit" class="bg-indigo-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:bg-indigo-700 transition">Scan & Add</button>
+                  </div>
+              </form>
             </div>
 
             <!-- Recent Transactions Section -->
@@ -125,7 +132,7 @@
                     {% else %}
                         <div class="text-center py-12 text-gray-500">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9-1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
                             <h3 class="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
                             <p class="mt-1 text-sm text-gray-500">Get started by adding a new transaction.</p>
@@ -135,6 +142,57 @@
             </div>
 
         </main>
+
+        <!-- Goal Prioritization Section -->
+        <div class="w-full max-w-4xl flex flex-col gap-6 mt-6">
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Financial Goals</h2>
+                    <form action="{{ url_for('pages.distribute_balance') }}" method="POST">
+                        <button type="submit" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition">Distribute Balance</button>
+                    </form>
+                </div>
+                
+                <form action="{{ url_for('pages.add_goal') }}" method="POST" class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4 mb-6">
+                    <h3 class="text-md font-semibold text-gray-700">Add New Goal</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <input type="text" name="name" placeholder="Goal Name" required class="w-full p-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" name="target_amount" placeholder="Target Amount" step="0.01" required class="w-full p-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" name="priority" placeholder="Priority %" required min="1" max="100" class="w-full p-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 transition">Add Goal</button>
+                </form>
+
+                <div class="max-h-60 overflow-y-auto scrollbar-hidden">
+                    {% if goals %}
+                        <ul class="divide-y divide-gray-200">
+                            {% for goal in goals %}
+                                <li class="flex flex-col sm:flex-row justify-between items-start sm:items-center py-3">
+                                    <div class="flex-grow">
+                                        <div class="flex items-center space-x-2">
+                                            <p class="font-medium text-gray-900">{{ goal.name }}</p>
+                                            <span class="text-xs font-semibold text-gray-600 bg-gray-200 px-2 py-0.5 rounded-full">{{ goal.priority }}%</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                                            {% set progress = (goal.current_amount / goal.target_amount) * 100 %}
+                                            <div class="bg-indigo-600 h-2.5 rounded-full" style="width: {{ progress }}%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0 mt-2 sm:mt-0 sm:ml-4 text-right">
+                                        <p class="text-lg font-bold text-gray-900">₱{{ "%.2f"|format(goal.current_amount) }} / ₱{{ "%.2f"|format(goal.target_amount) }}</p>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center py-6 text-gray-500">
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">No goals yet</h3>
+                            <p class="mt-1 text-sm text-gray-500">Set a financial goal to get started.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
         <!-- Charts Container with 2:1 Split -->
         <div class="w-full max-w-4xl flex flex-col md:flex-row gap-6 mt-6">
@@ -183,7 +241,7 @@
         const dateString = element.getAttribute('data-created-at');
         element.textContent = formatDate(dateString);
     });
-
+    
     // ------------------------------------
     // Doughnut Chart Logic
     // ------------------------------------
@@ -192,7 +250,10 @@
         if (transaction.type === 'expense') {
             const description = transaction.description;
             const amount = transaction.amount;
-            acc[description] = (acc[description] || 0) + amount;
+            // Ignore goals in the chart
+            if (!description.startsWith("Distributed to goal:")) {
+              acc[description] = (acc[description] || 0) + amount;
+            }
         }
         return acc;
     }, {});
@@ -365,11 +426,11 @@
     
     // Populate balance for each day with transactions
     sortedTransactions.forEach(t => {
-        const date = formatFullDate(t.created_at);
-        if (!balanceByDate[date]) {
-            balanceByDate[date] = 0;
+        const dateKey = formatFullDate(t.created_at);
+        if (!balanceByDate[dateKey]) {
+            balanceByDate[dateKey] = 0;
         }
-        balanceByDate[date] += (t.type === 'income' ? t.amount : -t.amount);
+        balanceByDate[dateKey] += (t.type === 'income' ? t.amount : -t.amount);
     });
 
     // Create a continuous historical data series

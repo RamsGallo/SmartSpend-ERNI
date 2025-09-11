@@ -29,6 +29,8 @@ class User(db.Model, UserMixin):
     income_source = db.Column(db.String(100), nullable=False)
 
     transactions = db.relationship('Transaction', backref='user', lazy=True)
+    # New relationship to goals
+    goals = db.relationship('Goal', backref='user', lazy=True)
 
     def set_password(self, password):
         """Hashes the user's password."""
@@ -42,3 +44,13 @@ class User(db.Model, UserMixin):
         UniqueConstraint('username', name='_username_uc'),
         UniqueConstraint('email', name='_email_uc'),
     )
+
+# Define the new Goal model
+class Goal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    target_amount = db.Column(db.Float, nullable=False)
+    current_amount = db.Column(db.Float, nullable=False, default=0.0)
+    priority = db.Column(db.Integer, nullable=False) # Represented as a percentage (1-100)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
