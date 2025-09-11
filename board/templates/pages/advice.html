@@ -1,33 +1,52 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Budgeting Advice</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Financial Advisor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            @apply bg-gray-100;
+        }
+        /* Custom styles for rendered Markdown */
+        .markdown-content h1, .markdown-content h2 {
+            @apply font-bold text-gray-800 mb-2;
+        }
+        .markdown-content h1 {
+            @apply text-xl;
+        }
+        .markdown-content h2 {
+            @apply text-lg;
+        }
+        .markdown-content p {
+            @apply mb-4 text-gray-600 leading-relaxed;
+        }
+        .markdown-content ul {
+            @apply list-disc list-inside mb-4;
+        }
+        .markdown-content li {
+            @apply text-gray-600 leading-relaxed;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800 min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-2xl w-full bg-white shadow-xl rounded-2xl p-8 space-y-6">
-    
-    <!-- Header -->
-    <div class="text-center">
-      <h1 class="text-3xl font-bold text-green-600">AI Budgeting Advice</h1>
-      <p class="text-gray-500 mt-2">Personalized financial insights powered by AI</p>
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-8">
+    <div class="w-full max-w-2xl bg-white rounded-xl shadow-lg p-8 space-y-6">
+        <h1 class="text-3xl font-bold text-gray-800 text-center">AI Financial Advisor</h1>
+        <div class="border border-gray-200 rounded-xl p-6 bg-gray-50">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Your Personalized Advice</h2>
+            <div class="markdown-content">
+                {% if advice %}
+                    {{ advice | safe }}
+                {% else %}
+                    <p class="text-gray-500 text-center">No advice available. Please add some transactions first!</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
-
-    <!-- Advice Content -->
-    <div class="bg-gray-50 p-6 rounded-xl shadow-inner">
-      <p class="text-lg leading-relaxed text-gray-700">{{ advice|safe }}</p>
-    </div>
-
-    <!-- Back Button -->
-    <div class="text-center">
-      <a href="/" 
-         class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg shadow hover:bg-blue-700 transition">
-        ⬅ Back to Home
-      </a>
-    </div>
-  </div>
 </body>
 </html>

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Account Registration{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/register.css') }}">
+<div class="container d-flex align-items-center justify-content-center min-vh-100 py-5">
+<div class="card shadow-lg rounded-4 p-5" style="max-width: 420px; width: 100%; border-radius: 12px;">
+
+    <!-- Registration Title -->
+    <h2 class="text-center mb-4 fw-bold text-primary">Register</h2>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Registration Form -->
+    <form method="POST" class="needs-validation" novalidate>
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input name="username" type="text" id="username" class="form-control" placeholder="Choose a username" required autocomplete="username" autofocus>
+            <div class="invalid-feedback">Please enter your username.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="full_name" class="form-label">Full Name</label>
+            <input name="full_name" type="text" id="full_name" class="form-control" placeholder="Enter your full name" required>
+            <div class="invalid-feedback">Please enter your full name.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input name="email" type="email" id="email" class="form-control" placeholder="Enter your email address" required autocomplete="email">
+            <div class="invalid-feedback">Please enter a valid email address.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="date_of_birth" class="form-label">Date of Birth</label>
+            <input name="date_of_birth" type="date" id="date_of_birth" class="form-control" required>
+            <div class="invalid-feedback">Please select your date of birth.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="age" class="form-label">Age</label>
+            <input name="age" type="number" id="age" class="form-control" placeholder="Enter your age" required min="0" max="150">
+            <div class="invalid-feedback">Please enter a valid age.</div>
+        </div>
+        
+        <div class="mb-3">
+            <label for="income_source" class="form-label">Source of Income</label>
+            <input name="income_source" type="text" id="income_source" class="form-control" placeholder="e.g., Salary, Freelance" required>
+            <div class="invalid-feedback">Please enter your source of income.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input name="password" type="password" id="password" class="form-control" placeholder="Create a password" required autocomplete="new-password">
+            <div class="invalid-feedback">Please enter your password.</div>
+        </div>
+
+        <div class="d-grid mb-3">
+            <button type="submit" class="btn btn-success w-100">
+                Register
+            </button>
+        </div>
+    </form>
+
+    <!-- Login Link -->
+    <p class="text-center text-muted mb-0">
+        Already have an account? <a href="{{ url_for('pages.login') }}" class="text-decoration-none text-primary fw-semibold">Login here</a>
+    </p>
+</div>
+
+</div>
+
+<!-- Bootstrap Validation & Custom Script -->
+
+<script>
+(function () {
+'use strict'
+const forms = document.querySelectorAll('.needs-validation')
+Array.from(forms).forEach(form => {
+form.addEventListener('submit', event => {
+if (!form.checkValidity()) {
+event.preventDefault()
+event.stopPropagation()
+}
+form.classList.add('was-validated')
+}, false)
+})
+})()
+</script>
+
+{% endblock %}

@@ -1,77 +1,231 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Budget Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            @apply bg-gray-100;
+        }
+        /* Custom CSS to hide scrollbar while keeping functionality */
+        .scrollbar-hidden::-webkit-scrollbar {
+            width: 0.5rem;
+        }
+        .scrollbar-hidden::-webkit-scrollbar-thumb {
+            background-color: transparent;
+            border-radius: 9999px;
+        }
+        .scrollbar-hidden:hover::-webkit-scrollbar-thumb {
+            background-color: #d1d5db; /* gray-300 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
 
-{% block title %}
-    Smart Spend
-{% endblock title %}
+    <div class="min-h-screen flex flex-col items-center p-4 sm:p-8">
+        <!-- Navigation Header -->
+        <header class="w-full max-w-4xl flex justify-between items-center py-4 px-6 bg-white shadow-md rounded-xl mb-8">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">My Budget</h1>
+            <nav class="flex items-center space-x-4">
+                <a href="{{ url_for('pages.investments') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Stock Lookup</a>
+                <a href="{{ url_for('pages.advice') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">AI Utilization Overview</a>
+                <!-- This link is a placeholder. You can create a profile endpoint later. -->
+                <a href="{{ url_for('pages.profile') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium">Profile</a>
+                <a href="{{ url_for('pages.logout') }}" class="text-sm sm:text-base text-gray-600 hover:text-indigo-600 font-medium px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition">Logout</a>
+            </nav>
+        </header>
 
-{% block header %}
-<script src="https://cdn.tailwindcss.com"></script>
-{% endblock header %}
+        <!-- Main Dashboard Content -->
+        <main class="w-full max-w-4xl flex flex-col md:flex-row gap-6">
 
-{% block content %}
-<body class="bg-gray-100 text-gray-800 min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-3xl w-full bg-white shadow-xl rounded-2xl p-8 space-y-6">
-    
-    <div class="text-center">
-      <h1 class="text-3xl font-bold text-blue-600">Smart Budgeting App</h1>
-      <p class="text-lg mt-2">Balance: <span class="font-semibold text-green-600">₱{{ balance }}</span></p>
-    </div>
+            <!-- Financial Summary Card -->
+            <div class="flex-1 bg-white p-6 rounded-xl shadow-md space-y-6">
+                <h2 class="text-lg font-semibold text-gray-900">Financial Overview</h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <!-- Total Balance Card -->
+                    <div class="flex flex-col p-4 rounded-xl border border-gray-200 bg-gray-50">
+                        <span class="text-sm text-gray-500 font-medium">Total Balance</span>
+                        <span class="mt-1 text-2xl font-bold text-gray-900">₱{{ balance }}</span>
+                    </div>
 
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
-      Cash In
-    </button>
-    
-    <div>
-      <h2 class="text-xl font-semibold mb-4 text-gray-700">Transactions</h2>
-      <ul class="space-y-2">
-        {% for t in transactions %}
-          <li class="flex justify-between items-center bg-gray-50 p-3 rounded-lg shadow-sm">
-            <span class="text-sm text-gray-700">{{ t.description }}</span>
-            <span class="font-medium {% if t.type == 'income' %}text-green-600{% else %}text-red-600{% endif %}">
-              {{ t.type }} - ₱{{ t.amount }}
-            </span>
-          </li>
-        {% endfor %}
-      </ul>
-    </div>
+                    <!-- Income Card -->
+                    <div class="flex flex-col p-4 rounded-xl border border-green-200 bg-green-50">
+                        <span class="text-sm text-green-700 font-medium">Total Income</span>
+                        <span class="mt-1 text-2xl font-bold text-green-800">₱{{ income }}</span>
+                    </div>
 
-    <div class="text-center">
-      <a href="{{ url_for('pages.advice') }}" 
-         class="inline-block bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 transition">
-        Get AI Advice
-      </a>
-    </div>
+                    <!-- Expense Card -->
+                    <div class="flex flex-col p-4 rounded-xl border border-red-200 bg-red-50">
+                        <span class="text-sm text-red-700 font-medium">Total Expenses</span>
+                        <span class="mt-1 text-2xl font-bold text-red-800">₱{{ expense }}</span>
+                    </div>
+                </div>
 
-  </div>
-
-  <div class="modal fade" id="addTransactionModal" tabindex="-1" aria-labelledby="addTransactionModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addTransactionModalLabel">Add Transaction</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <form method="POST" action="{{ url_for('pages.add_transaction') }}">
-          <div class="modal-body">
-            <input type="hidden" name="type" value="income">
-            
-            <div class="mb-3">
-              <label for="amount" class="form-label">Amount</label>
-              <input type="number" step="0.01" name="amount" required class="form-control" id="amount">
+                <!-- Add Transaction Form -->
+                <form action="{{ url_for('pages.add_transaction') }}" method="POST" class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+                    <h3 class="text-md font-semibold text-gray-700">Add New Transaction</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <select name="type" class="w-full p-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                        </select>
+                        <input type="number" name="amount" placeholder="Amount" step="0.01" required class="w-full p-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" name="description" placeholder="Description" required class="w-full p-2.5 col-span-1 sm:col-span-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg shadow-md hover:bg-indigo-700 transition">Add Transaction</button>
+                </form>
             </div>
 
-            <div class="mb-3">
-              <label for="description" class="form-label">Description</label>
-              <input type="text" name="description" required class="form-control" id="description">
+            <!-- Recent Transactions Section -->
+            <div class="w-full md:w-1/2 lg:w-2/5 xl:w-1/3 flex-shrink-0 bg-white p-6 rounded-xl shadow-md space-y-4">
+                <!-- Donut Chart -->
+                <h2 class="text-lg font-semibold text-gray-900">Expense Breakdown</h2>
+                <div class="flex items-center justify-center">
+                    <canvas id="expenseChart" class="w-full h-auto"></canvas>
+                </div>
+                
+                <h2 class="text-lg font-semibold text-gray-900">Recent Transactions</h2>
+                
+                <div class="max-h-80 overflow-y-auto scrollbar-hidden">
+                    {% if transactions %}
+                        <ul class="divide-y divide-gray-200">
+                            {% for transaction in transactions %}
+                                <li class="flex justify-between items-center py-3">
+                                    <div class="flex items-center space-x-3">
+                                        <!-- Changed to a span with data-created-at to be handled by JS -->
+                                        <span class="text-sm text-gray-500 font-medium" data-created-at="{{ transaction.created_at }}"></span>
+                                        <div>
+                                            <p class="font-medium text-gray-900">{{ transaction.description }}</p>
+                                        </div>
+                                    </div>
+                                    <span class="text-lg font-bold
+                                        {% if transaction.type == 'income' %} text-green-600 {% else %} text-red-600 {% endif %}">
+                                        {{ '₱' if transaction.type == 'income' else '-₱' }}{{ transaction.amount }}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
+                            <p class="mt-1 text-sm text-gray-500">Get started by adding a new transaction.</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="submit" class="btn btn-primary">Add Transaction</button>
-          </div>
-        </form>
-      </div>
+
+        </main>
     </div>
-  </div>
+
+<script>
+    // Get the transactions data from the Flask template
+    const transactions = {{ transactions | tojson }};
+
+    // Helper function to format the date string
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const options = { month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+
+    // Format dates on page load
+    document.querySelectorAll('[data-created-at]').forEach(element => {
+        const dateString = element.getAttribute('data-created-at');
+        element.textContent = formatDate(dateString);
+    });
+
+    // Aggregate expenses by description
+    const expenseData = transactions.reduce((acc, transaction) => {
+        if (transaction.type === 'expense') {
+            const description = transaction.description;
+            const amount = transaction.amount;
+            acc[description] = (acc[description] || 0) + amount;
+        }
+        return acc;
+    }, {});
+
+    const labels = Object.keys(expenseData);
+    const data = Object.values(expenseData);
+
+    // Custom color palette for the chart slices
+    const backgroundColors = [
+        '#6366f1', // Indigo 500
+        '#ef4444', // Red 500
+        '#f97316', // Orange 500
+        '#eab308', // Yellow 500
+        '#84cc16', // Lime 500
+        '#22c55e', // Green 500
+        '#14b8a6', // Teal 500
+        '#06b6d4', // Cyan 500
+        '#3b82f6', // Blue 500
+        '#a855f7', // Purple 500
+        '#ec4899', // Pink 500
+        '#f43f5e', // Rose 500
+    ];
+
+    if (labels.length > 0) {
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        const expenseChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors.slice(0, labels.length),
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                // The following lines were removed to create a full circle again
+                // rotation: -0.5 * Math.PI,
+                // circumference: Math.PI,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                family: 'Inter',
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed) {
+                                    label += '₱' + context.parsed.toFixed(2);
+                                }
+                                return label;
+                            }
+                        },
+                        titleFont: {
+                            family: 'Inter'
+                        },
+                        bodyFont: {
+                            family: 'Inter'
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
 </body>
-{% endblock content %}
+</html>
