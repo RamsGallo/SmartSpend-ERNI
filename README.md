@@ -65,7 +65,7 @@ Before you begin, ensure you have the following software installed:
 ### **AI Tools and Libraries Used**
 
 * **Gemini 2.5**: Utilized for providing personalized financial advice.
-* **EasyOCR**: Used for the Optical Character Recognition feature to quickly scan and input expenses/incomes.
+* **EasyOCR**: Used for the Optical Character Recognition feature to quickly scan and input expenses/incomes. EasyOCR requires PyTorch and Numpy
 
 ---
 
