@@ -1,54 +1,70 @@
-# SmartSpend-ERNI
-ERNI Hackathon 2025 Fintech
+SmartSpend-ERNI
+A hackathon project for the ERNI Hackathon 2025 Fintech
 
-SmartSpend is an AI-empowered budgeting app with tools such as OCR for quick income/expense inputs and an AI advisor that suggests personalized devises for better budgeting!
+SmartSpend is an AI-empowered budgeting application that helps users manage their finances. Key features include OCR (Optical Character Recognition) for quick income and expense inputs and an AI advisor that provides personalized financial advice for better budgeting.
 
-Disclaimer: This system is neither meant for commercial use nor dedicated for commercial distribution. 
+Disclaimer: This system is not intended for commercial use or distribution.
 
 Getting Started
-This section will help you get a copy of the project up and running on your local machine.
+This section will guide you through the process of getting a copy of the project up and running on your local machine.
 
 Prerequisites
-Before you begin, ensure you have the following installed:
+Before you begin, ensure you have the following software installed:
 
 Python 3.x: You can download it from the official Python website.
-pip: The Python package installer, which usually comes with Python 3.
-git: To clone the repository. You can get it from the official Git website.
 
-Clone repository
-'''git clone https://github.com/RamsGallo/SmartSpend-ERNI.git
-cd SmartSpend-ERNI'''
+pip: The Python package installer, which typically comes with Python 3.
 
-Install required dependencies
-'''pip install -r requirements.txt'''
+git: To clone the repository. You can download it from the official Git website.
 
-Set board as the Flask app root
-'''set FLASK_APP=board'''
+Installation
+Clone the repository:
 
-Setup SQAlchemy database
-'''flask db init'''
+Bash
 
-Migrate database
-'''flask db migrate -m "comment_here"'''
+git clone https://github.com/RamsGallo/SmartSpend-ERNI.git
+cd SmartSpend-ERNI
+Install required dependencies:
+This command will install all the necessary libraries, including Flask, from the requirements.txt file.
 
-Implement migration
-'''flask db upgrade'''
+Bash
 
-Set up environment variables
-Create a .env file in the project's root directory and add the necessary variables.
-'''FLASK_SECRET_KEY="your_secret_key"'''
-'''GEMENI_SECRET_KEY="your_secret_key"''' 
+pip install -r requirements.txt
+Set up environment variables:
+Create a .env file in the project's root directory and add the following variables.
 
-Run the Flask app
-'''flask run --host=0.0.0.0 (optional) --port=8080 (optional) --debug (optional)'''
+Bash
 
-AI tools and Libraries Used:
-- Gemini 2.5 for personalized 
-- EasyOCR for character recognition
+FLASK_SECRET_KEY="your_secret_key"
+GEMINI_SECRET_KEY="your_secret_key"
+Configure the Flask app root:
 
-Roles of each team member:
-Cathlene Ilagan - Project design
-Rams Gallo - Fullstack
-Joshua Gagarin - API Integration and backend
+Bash
 
+set FLASK_APP=board
+Set up the SQLAlchemy database:
+Follow these steps to initialize and migrate the database.
 
+Bash
+
+flask db init
+flask db migrate -m "comment_here"
+flask db upgrade
+Run the Flask application:
+
+Bash
+
+flask run --host=0.0.0.0 --port=8080 --debug
+Note: The --host, --port, and --debug flags are optional.
+
+AI Tools and Libraries Used
+Gemini 2.5: Utilized for providing personalized financial advice.
+
+EasyOCR: Used for the Optical Character Recognition feature to quickly scan and input expenses/incomes.
+
+Team Members
+Cathlene Ilagan: Project design
+
+Rams Gallo: Full-stack development
+
+Joshua Gagarin: API integration and backend development
