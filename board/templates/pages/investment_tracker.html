@@ -35,10 +35,6 @@
                         <span class="text-sm text-gray-500 font-medium">Total Portfolio Value</span>
                         <span id="total-value" class="mt-1 text-2xl font-bold text-gray-900">₱0.00</span>
                     </div>
-                    <div class="p-4 rounded-xl border border-green-200 bg-green-50">
-                        <span class="text-sm text-green-700 font-medium">Daily Change</span>
-                        <span id="daily-change" class="mt-1 text-2xl font-bold text-green-800">₱0.00</span>
-                    </div>
                 </div>
             </div>
 
@@ -60,7 +56,6 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Price</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Value</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Daily Change</th>
                                 <th class="px-6 py-3"><span class="sr-only">Actions</span></th>
                             </tr>
                         </thead>
@@ -75,6 +70,10 @@
                     <h3 class="mt-2 text-sm font-medium text-gray-900">No assets tracked yet</h3>
                     <p class="mt-1 text-sm text-gray-500">Add your first asset to get started.</p>
                 </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Stock Performance</h2>
+                <canvas id="stockChart" class="w-full h-64"></canvas>
             </div>
         </main>
     </div>
@@ -130,6 +129,70 @@
             }
         };
 
+        // Modal logic
+        const modal = document.getElementById('add-asset-modal');
+        document.getElementById('add-asset-btn').addEventListener('click', () => modal.classList.remove('hidden'));
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            modal.classList.add('hidden');
+            document.getElementById('add-asset-form').reset();
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let stockChart = null;
+
+        const renderChart = (symbol, dates, prices) => {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+
+            // Destroy old chart if exists
+            if (stockChart) {
+                stockChart.destroy();
+            }
+
+            stockChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: `${symbol} Closing Price`,
+                        data: prices,
+                        borderColor: 'rgba(79, 70, 229, 1)',  // Indigo
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Date' }},
+                        y: { title: { display: true, text: 'Price (USD)' }}
+                    }
+                }
+            });
+        };
+
+        const fetchStockHistory = async (symbol) => {
+            const url = `/api/stock_history/${symbol}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (!response.ok) {
+                    showMessage(data.error || "Failed to fetch chart data.");
+                    return null;
+                }
+                return data;
+            } catch (error) {
+                console.error("Chart fetch error:", error);
+                showMessage("Connection error while fetching chart data.");
+                return null;
+            }
+        };
+
         const updatePortfolio = async () => {
             statusMessage.classList.remove('hidden');
 
@@ -144,7 +207,7 @@
                 document.getElementById('no-holdings').classList.add('hidden');
             }
 
-            for (const asset of holdings) {
+            for (const [index, asset] of holdings.entries()) {
                 const data = await fetchStockData(asset.symbol);
                 if (data) {
                     const totalAssetValue = asset.quantity * data.price;
@@ -153,24 +216,44 @@
                     totalDailyChange += totalAssetDailyChange;
 
                     const row = document.createElement('tr');
+                    row.classList.add("cursor-pointer", "hover:bg-gray-50"); // make it clickable
+                    row.dataset.symbol = asset.symbol;
+
                     const dailyChangeClass = totalAssetDailyChange >= 0 ? 'text-green-600' : 'text-red-600';
                     const dailyChangeSign = totalAssetDailyChange >= 0 ? '+' : '';
                     row.innerHTML = `
-                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${asset.symbol}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500">${asset.quantity.toFixed(2)}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500">₱${data.price.toFixed(2)}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500">₱${totalAssetValue.toFixed(2)}</td>
-                        <td class="px-6 py-4 text-sm font-medium ${dailyChangeClass}">
-                            ${dailyChangeSign}₱${Math.abs(totalAssetDailyChange).toFixed(2)}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.name} (${asset.symbol})</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${asset.quantity.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₱${data.price.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₱${totalAssetValue.toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                            <span class="block">Sector: ${data.sector}</span>
+                            <span class="block">Market Cap: ${data.market_cap.toLocaleString()}</span>
                         </td>
-                        <td class="px-6 py-4 text-right text-sm font-medium">
-                            <form action="{{ url_for('pages.remove_investment') }}" method="post">
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <form action="{{ url_for('pages.remove_investment') }}" method="post" style="display:inline;">
                                 <input type="hidden" name="symbol" value="${asset.symbol}">
-                                <button type="submit" class="text-red-600 hover:text-red-900">Remove</button>
+                                <button type="submit" class="text-red-600 hover:text-red-900 transition">Remove</button>
                             </form>
                         </td>
                     `;
                     tableBody.appendChild(row);
+
+                    // Attach click event for chart switching
+                    row.addEventListener("click", async () => {
+                        const hist = await fetchStockHistory(asset.symbol);
+                        if (hist) {
+                            renderChart(asset.symbol, hist.dates, hist.prices);
+                        }
+                    });
+
+                    // Auto-load first asset into chart
+                    if (index === 0) {
+                        const hist = await fetchStockHistory(asset.symbol);
+                        if (hist) {
+                            renderChart(asset.symbol, hist.dates, hist.prices);
+                        }
+                    }
                 }
             }
 
@@ -183,18 +266,12 @@
             statusMessage.classList.add('hidden');
         };
 
-        // Modal logic
-        const modal = document.getElementById('add-asset-modal');
-        document.getElementById('add-asset-btn').addEventListener('click', () => modal.classList.remove('hidden'));
-        document.getElementById('close-modal-btn').addEventListener('click', () => {
-            modal.classList.add('hidden');
-            document.getElementById('add-asset-form').reset();
-        });
-
         window.onload = () => {
             updatePortfolio();
-            setInterval(updatePortfolio, 60000); // refresh every 1 min
+            setInterval(updatePortfolio, 60000); // 60 seconds lang
         };
     </script>
+
+
 </body>
 </html>

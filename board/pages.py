@@ -1,7 +1,7 @@
 import os
 import secrets
 import tempfile
-from flask import Blueprint, render_template, request, redirect, url_for, session, current_app, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, current_app, flash, jsonify
 from flask_login import login_required, login_user, logout_user, current_user
 import markdown
 import requests
@@ -10,6 +10,7 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from board.models import db, Transaction, User, Goal
 from board.ocr_utils import process_image_for_ocr, parse_transaction_from_text
+import yfinance as yf
 
 bp = Blueprint("pages", __name__)
 
@@ -178,7 +179,7 @@ def ocr_upload():
             amount=tx["amount"],
             description=tx["description"],
             source=tx["source"],
-            user_id=current_user.id,  # ✅ tie to logged-in user
+            user_id=current_user.id,
         )
         db.session.add(new_tx)
 
@@ -298,7 +299,7 @@ def advice():
     )
     
     advice_text = markdown.markdown(response.text)
-    return render_template("pages/advice.html", advice=advice_text)
+    return jsonify({"advice": advice_text})
 
 @bp.route("/profile", methods=['GET', 'POST'])
 @login_required
@@ -323,42 +324,41 @@ def investments():
     # Pass the investments from the session to the template
     return render_template("pages/investment_tracker.html", holdings=session['investments'])
 
-# Create an API endpoint to fetch stock data
 @bp.route("/api/stock/<symbol>")
 @login_required
 def get_stock_data(symbol):
-    # Retrieve the API key from the app configuration
-    api_key = current_app.config.get('ALPHA_VANTAGE_API_KEY')
-    
-    if not api_key:
-        return {"error": "API key not configured."}, 500
-
-    url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={api_key}"
-    
+    import yfinance as yf
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+        hist = ticker.history(period="1d")
 
-        if "Error Message" in data:
-            return {"error": data["Error Message"]}, 400
+        if hist.empty:
+            return {"error": f"No data found for {symbol}"}, 404
 
-        quote = data.get('Global Quote', {})
-        if not quote:
-            return {"error": f"No data found for symbol: {symbol}"}, 404
+        price_usd = hist["Close"].iloc[-1]
+        prev_close_usd = hist["Close"].iloc[-2] if len(hist) > 1 else price_usd
 
-        stock_data = {
-            "symbol": quote.get('01. symbol'),
-            "price": float(quote.get('05. price')),
-            "daily_change": float(quote.get('09. change'))
-        }
-        return stock_data
+        daily_change_usd = price_usd - prev_close_usd
+        change_percent = (daily_change_usd / prev_close_usd) * 100 if prev_close_usd else 0
 
-    except requests.exceptions.RequestException as e:
-        current_app.logger.error(f"Request failed for {symbol}: {e}")
+        # Convert to PHP
+        usd_to_php = get_usd_to_php()
+        price_php = price_usd * usd_to_php
+        daily_change_php = daily_change_usd
+
+        return jsonify({
+            "name": info.get("longName", symbol),
+            "price": price_php,
+            "daily_change": daily_change_php,
+            "change_percent": change_percent,
+            "sector": info.get("sector", "N/A"),
+            "market_cap": info.get("marketCap", 0)
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch stock data for {symbol}: {e}")
         return {"error": "Failed to fetch stock data."}, 500
 
-# Route to add a new investment to the session
 @bp.route("/add_investment", methods=["POST"])
 @login_required
 def add_investment():
@@ -389,7 +389,7 @@ def add_investment():
 
     # The session needs to be modified for Flask to save changes.
     session.modified = True
-    return render_template("investment_tracker.html", holdings=session["investments"])
+    return render_template("pages/investment_tracker.html", holdings=session["investments"])
 
 # Route to remove an investment from the session
 @bp.route("/remove_investment", methods=["POST"])
@@ -402,3 +402,37 @@ def remove_investment():
     session.modified = True
     flash("Investment removed successfully!", "success")
     return redirect(url_for("pages.investments"))
+
+def get_usd_to_php():
+    import yfinance as yf
+    ticker = yf.Ticker("USDPHP=X")
+    data = ticker.history(period="1d")
+    if not data.empty:
+        return float(data["Close"].iloc[-1])
+    return 1.0  # fallback
+
+
+@bp.route("/api/stock_history/<symbol>")
+@login_required
+def get_stock_history(symbol):
+    import yfinance as yf
+    try:
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="1mo")
+
+        if hist.empty:
+            return {"error": f"No history found for {symbol}"}, 404
+
+        usd_to_php = get_usd_to_php()
+
+        dates = hist.index.strftime("%Y-%m-%d").tolist()
+        prices = (hist["Close"] * usd_to_php).round(2).tolist()
+
+        return jsonify({"dates": dates, "prices": prices})
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to fetch history for {symbol}: {e}")
+        return {"error": "Failed to fetch stock history."}, 500
+
+
+
