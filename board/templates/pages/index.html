@@ -336,10 +336,6 @@
         });
     }
 
-    // ------------------------------------
-    // New Bar Chart Logic
-    // ------------------------------------
-    // Aggregate income and expenses by date
     const dailyData = transactions.reduce((acc, transaction) => {
         // Use the full date (e.g., '10/27/2023') as the key
         const dateKey = formatFullDate(transaction.created_at);
